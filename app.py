@@ -16,6 +16,41 @@ from features import FREQ, explain_zones, load_frf_csv, read_docx_info
 
 st.set_page_config(page_title="Bearing flaking check (PoC)", layout="wide")
 
+st.markdown("""
+<style>
+    :root {
+        --page-bg: #050505; --sidebar-bg: #090909; --surface-bg: #101010;
+        --text: #ededed; --muted: #999; --border: #292929;
+    }
+    html[data-theme="light"] {
+        --page-bg: #ffffff; --sidebar-bg: #f7f7f8; --surface-bg: #f3f4f6;
+        --text: #202124; --muted: #62666b; --border: #dedfe2;
+    }
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"],
+    [data-testid="stMain"], [data-testid="stMainBlockContainer"] {
+        background: var(--page-bg); color: var(--text);
+    }
+    [data-testid="stSidebar"] {background: var(--sidebar-bg); border-right: 1px solid var(--border);}
+    .block-container {padding-top: 1.2rem; padding-bottom: 2rem; max-width: 1400px;}
+    h1, h2, h3, p, label, [data-testid="stMarkdownContainer"] {color: var(--text);}
+    .hero {padding: .25rem 0 .85rem; border-bottom: 1px solid var(--border); margin-bottom: .8rem;}
+    .hero h1 {margin: 0; font-size: 1.55rem; font-weight: 650; color: var(--text);}
+    .hero p {margin: .2rem 0 0; color: var(--muted); font-size: .88rem;}
+    .result {padding: 1rem; border: 1px solid rgba(255,255,255,.12); border-radius: 12px;
+        color: white; text-align: center; box-shadow: 0 8px 24px rgba(0,0,0,.25);}
+    .result-label {font-size: 1.55rem; font-weight: 700; letter-spacing: .02em;}
+    .result-detail {font-size: .92rem; margin-top: .25rem;}
+    .guide {display: flex; align-items: center; gap: .55rem; flex-wrap: wrap;
+        padding: .55rem .75rem; border: 1px solid var(--border); border-radius: 9px;
+        background: var(--surface-bg); color: var(--muted); font-size: .82rem; margin: .35rem 0 1rem;}
+    .guide-title {color: var(--text); font-weight: 600; margin-right: .2rem;}
+    .guide-item {white-space: nowrap;}
+    .guide-dot {color: var(--muted); padding: 0 .18rem;}
+    [data-testid="stDataFrame"] {border: 1px solid var(--border); border-radius: 9px; overflow: hidden;}
+    [data-testid="stAlert"] {background: var(--surface-bg); border-color: var(--border); color: var(--text);}
+</style>
+""", unsafe_allow_html=True)
+
 
 @st.cache_resource
 def load_bundle(brand):
@@ -23,7 +58,8 @@ def load_bundle(brand):
 
 
 # ------------------------------------------------------------------ sidebar
-st.sidebar.title("Inputs")
+st.sidebar.title("Bearing check")
+st.sidebar.caption("Choose a model and upload the tap-test curve.")
 brand = st.sidebar.selectbox("Bearing brand", ["NBC", "TIMKEN"])
 try:
     B = load_bundle(brand)
@@ -62,9 +98,20 @@ if docx_file is not None:
         st.sidebar.error(f"Could not read the Word file: {e}")
 
 # ------------------------------------------------------------------ main
-st.title("Bearing flaking check - proof of concept")
-st.caption("Looks only at the tap-test FRF curve. This is a PoC trained on a small data set: "
-           "treat the result as a hint, not a decision.")
+st.markdown("""
+<div class="hero"><h1>Bearing flaking check</h1><p>FRF tap-test screening · Proof of concept</p></div>
+""", unsafe_allow_html=True)
+st.markdown("""
+<div class="guide">
+  <span class="guide-title">Probability guide</span>
+  <span class="guide-item"><b style="color:#55c9a5">Not flaking</b> &lt;35%</span>
+  <span class="guide-dot">·</span>
+  <span class="guide-item"><b style="color:#efbd62">Unsure</b> 35–65%</span>
+  <span class="guide-dot">·</span>
+  <span class="guide-item"><b style="color:#ff7777">Flaking</b> &gt;65%</span>
+</div>
+""", unsafe_allow_html=True)
+st.caption("Uses the FRF curve only. Treat this proof-of-concept result as a screening hint.")
 
 if csv_file is None:
     st.info("Upload an FRF CSV in the sidebar to start.")
@@ -94,9 +141,9 @@ conf = max(p, 1 - p) * 100
 lean = "flaking" if p >= th["decision"] else "not flaking"
 
 st.markdown(
-    f"<div style='padding:18px;border-radius:10px;background:{colour};color:white;text-align:center'>"
-    f"<div style='font-size:42px;font-weight:700'>{verdict}</div>"
-    f"<div style='font-size:20px'>Probability of flaking: {p * 100:.0f}% &nbsp;|&nbsp; "
+    f"<div class='result' style='background:linear-gradient(120deg,{colour}, {colour}dd)'>"
+    f"<div class='result-label'>{verdict}</div>"
+    f"<div class='result-detail'>Probability of flaking: {p * 100:.0f}% &nbsp;·&nbsp; "
     f"confidence {conf:.0f}% (leans {lean})</div></div>",
     unsafe_allow_html=True,
 )
@@ -109,6 +156,10 @@ c1, c2 = st.columns([3, 2])
 with c1:
     st.subheader("Your curve vs the training curves")
     fig, ax = plt.subplots(figsize=(9, 4.5))
+    chart_bg = "#ffffff" if st.get_option("theme.base") == "light" else "#050505"
+    chart_fg = "#242424" if chart_bg == "#ffffff" else "#d0d0d0"
+    fig.patch.set_facecolor(chart_bg)
+    ax.set_facecolor(chart_bg)
     for key, lab, col in (("not", "Not flaking", "#457b9d"), ("flaking", "Flaking", "#e63946")):
         ax.fill_between(FREQ, 10 ** B[f"p10_{key}"], 10 ** B[f"p90_{key}"], color=col, alpha=0.15)
         ax.plot(FREQ, 10 ** B[f"med_{key}"], color=col, lw=1.5, label=f"{lab} median (10-90% band)")
@@ -117,6 +168,12 @@ with c1:
     ax.set_xlabel("Frequency (Hz)")
     ax.set_ylabel("|H| (g/lbf)")
     ax.set_xlim(0, FREQ[-1])
+    ax.tick_params(colors=chart_fg)
+    ax.xaxis.label.set_color(chart_fg)
+    ax.yaxis.label.set_color(chart_fg)
+    ax.title.set_color(chart_fg)
+    for spine in ax.spines.values():
+        spine.set_color("#c7c7c7" if chart_bg == "#ffffff" else "#555")
     ax.grid(alpha=0.3, which="both")
     ax.legend(fontsize=8)
     ax.set_title(f"{brand}")
