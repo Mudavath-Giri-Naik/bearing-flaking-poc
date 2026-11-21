@@ -16,21 +16,34 @@ from features import FREQ, explain_zones, load_frf_csv, read_docx_info
 
 st.set_page_config(page_title="Bearing flaking check (PoC)", layout="wide")
 
+light_theme = st.context.theme.type == "light"
+theme_colors = {
+    "page": "#ffffff" if light_theme else "#000000",
+    "sidebar": "#f5f5f5" if light_theme else "#080808",
+    "surface": "#f0f0f0" if light_theme else "#111111",
+    "text": "#202020" if light_theme else "#eeeeee",
+    "muted": "#666666" if light_theme else "#aaaaaa",
+    "border": "#d4d4d4" if light_theme else "#3a3a3a",
+}
+
 st.markdown("""
 <style>
     :root {
-        --page-bg: #050505; --sidebar-bg: #090909; --surface-bg: #101010;
-        --text: #ededed; --muted: #999; --border: #292929;
+        --page-bg: __PAGE_BG__;
+        --sidebar-bg: __SIDEBAR_BG__;
+        --surface-bg: __SURFACE_BG__;
+        --text: __TEXT_COLOR__;
+        --muted: __MUTED_COLOR__;
+        --border: __BORDER_COLOR__;
     }
-    html[data-theme="light"] {
-        --page-bg: #ffffff; --sidebar-bg: #f7f7f8; --surface-bg: #f3f4f6;
-        --text: #202124; --muted: #62666b; --border: #dedfe2;
+    html, body, #root, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"],
+    [data-testid="stMain"], [data-testid="stMainBlockContainer"], section.main {
+        background: var(--page-bg) !important; color: var(--text);
     }
-    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"],
-    [data-testid="stMain"], [data-testid="stMainBlockContainer"] {
-        background: var(--page-bg); color: var(--text);
+    [data-testid="stSidebar"] {
+        background: var(--sidebar-bg) !important;
+        border-right: 1px solid var(--border);
     }
-    [data-testid="stSidebar"] {background: var(--sidebar-bg); border-right: 1px solid var(--border);}
     .block-container {padding-top: 1.2rem; padding-bottom: 2rem; max-width: 1400px;}
     h1, h2, h3, p, label, [data-testid="stMarkdownContainer"] {color: var(--text);}
     .hero {padding: .25rem 0 .85rem; border-bottom: 1px solid var(--border); margin-bottom: .8rem;}
@@ -49,7 +62,12 @@ st.markdown("""
     [data-testid="stDataFrame"] {border: 1px solid var(--border); border-radius: 9px; overflow: hidden;}
     [data-testid="stAlert"] {background: var(--surface-bg); border-color: var(--border); color: var(--text);}
 </style>
-""", unsafe_allow_html=True)
+""".replace("__PAGE_BG__", theme_colors["page"])
+    .replace("__SIDEBAR_BG__", theme_colors["sidebar"])
+    .replace("__SURFACE_BG__", theme_colors["surface"])
+    .replace("__TEXT_COLOR__", theme_colors["text"])
+    .replace("__MUTED_COLOR__", theme_colors["muted"])
+    .replace("__BORDER_COLOR__", theme_colors["border"]), unsafe_allow_html=True)
 
 
 @st.cache_resource
@@ -156,7 +174,7 @@ c1, c2 = st.columns([3, 2])
 with c1:
     st.subheader("Your curve vs the training curves")
     fig, ax = plt.subplots(figsize=(9, 4.5))
-    chart_bg = "#ffffff" if st.get_option("theme.base") == "light" else "#050505"
+    chart_bg = "#ffffff" if st.context.theme.type == "light" else "#050505"
     chart_fg = "#242424" if chart_bg == "#ffffff" else "#d0d0d0"
     fig.patch.set_facecolor(chart_bg)
     ax.set_facecolor(chart_bg)
